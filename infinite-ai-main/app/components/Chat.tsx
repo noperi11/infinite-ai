@@ -9,7 +9,7 @@ type Message = {
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", text: "Halo! Ada yang bisa saya bantu?" },
+    { role: "assistant", text: "Halo! Saya asisten AI Anda. Ada yang bisa saya bantu hari ini?" },
   ]);
 
   const [input, setInput] = useState("");
@@ -20,14 +20,20 @@ export default function Chat() {
   // Auto scroll bottom
   useEffect(() => {
     if (!containerRef.current) return;
-    containerRef.current.scrollTop = containerRef.current.scrollHeight;
-  }, [messages]);
+    const scrollOptions: ScrollIntoViewOptions = { behavior: "smooth" };
+    // Sedikit delay agar animasi render selesai sebelum scroll
+    setTimeout(() => {
+      containerRef.current?.scrollTo({
+        top: containerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 100);
+  }, [messages, loading]);
 
-  // Deteksi URL menjadi <a href>
+  // Format URL
   function formatMessage(text: string) {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
-
     return parts.map((part, idx) => {
       if (part.match(urlRegex)) {
         return (
@@ -70,9 +76,7 @@ export default function Chat() {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -87,7 +91,6 @@ export default function Chat() {
 
       const data = await res.json();
       const botText = data.output || "Tidak ada respons";
-
       setMessages((prev) => [...prev, { role: "assistant", text: botText }]);
     } catch (err) {
       setMessages((prev) => [
@@ -101,144 +104,296 @@ export default function Chat() {
 
   return (
     <>
-      {/* CSS langsung di sini */}
       <style>{`
-        .chat-wrapper {
-          background: #000;
-          color: #fff;
-          min-height: 100vh;
+        /* Reset & Base */
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+
+        /* Main Layout */
+        .app-container {
+          background: linear-gradient(135deg, #09090b 0%, #18181b 100%);
+          color: #e4e4e7;
+          height: 100vh;
+          width: 100vw;
           display: flex;
-          justify-content: center;
-          align-items: center;
-          padding: 20px;
+          flex-direction: column;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          position: relative;
         }
 
-        .chat-box {
+        /* Decorative Background Glow */
+        .glow-effect {
+          position: absolute;
+          width: 600px;
+          height: 600px;
+          background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
+          top: -200px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        /* Chat Layout Wrapper */
+        .chat-layout {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          max-width: 1000px; /* Lebar maksimum agar nyaman dibaca di layar lebar */
           width: 100%;
-          max-width: 700px;
-          background: #111;
-          border: 1px solid #222;
-          border-radius: 16px;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
+          margin: 0 auto;
+          background: rgba(20, 20, 20, 0.4);
+          border-left: 1px solid rgba(255,255,255,0.05);
+          border-right: 1px solid rgba(255,255,255,0.05);
+          backdrop-filter: blur(20px);
         }
 
+        /* Header */
         .chat-header {
-          padding: 16px;
-          border-bottom: 1px solid #222;
-          font-size: 20px;
-          font-weight: bold;
+          padding: 20px 24px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: rgba(10, 10, 10, 0.6);
+          backdrop-filter: blur(10px);
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 10;
+        }
+        
+        .header-title {
+          font-size: 18px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+          color: #fff;
         }
 
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          background-color: #10b981;
+          border-radius: 50%;
+          box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        /* Message Area */
         .chat-container {
-          height: 60vh;
+          flex: 1;
           overflow-y: auto;
-          padding: 20px;
+          padding: 90px 20px 100px 20px; /* Padding atas/bawah untuk header/footer */
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 24px;
         }
 
-        .chat-msg {
-          max-width: 75%;
-          padding: 12px 16px;
-          border-radius: 14px;
-          font-size: 14px;
-          line-height: 1.4;
+        /* Scrollbar Styling */
+        .chat-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .chat-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
         }
 
-        .msg-user {
-          margin-left: auto;
-          background: #2563eb;
-          color: white;
-          border-radius: 14px 14px 0 14px;
-        }
-
-        .msg-ai {
-          margin-right: auto;
-          background: #222;
-          color: #eee;
-          border: 1px solid #333;
-          border-radius: 14px 14px 14px 0;
-        }
-
-        .chat-footer {
+        /* Messages */
+        .chat-row {
           display: flex;
-          border-top: 1px solid #222;
-          padding: 16px;
-          gap: 8px;
-          background: #111;
+          width: 100%;
+          animation: slideIn 0.3s ease-out forwards;
+          opacity: 0;
+          transform: translateY(10px);
         }
 
-        .chat-input {
-          flex: 1;
-          padding: 12px 16px;
-          font-size: 14px;
-          border-radius: 10px;
-          border: 1px solid #333;
-          background: #000;
+        @keyframes slideIn {
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-row.user { justify-content: flex-end; }
+        .chat-row.assistant { justify-content: flex-start; }
+
+        .chat-bubble {
+          max-width: 80%;
+          padding: 14px 20px;
+          font-size: 15px;
+          line-height: 1.6;
+          border-radius: 18px;
+          position: relative;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .chat-row.user .chat-bubble {
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
           color: white;
+          border-bottom-right-radius: 4px;
         }
 
-        .chat-input:focus {
-          outline: none;
-          border-color: #2563eb;
-        }
-
-        .chat-send {
-          background: #fff;
-          color: #000;
-          padding: 12px 20px;
-          border-radius: 10px;
-          font-weight: 600;
-          cursor: pointer;
-          border: none;
-        }
-
-        .chat-send:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
+        .chat-row.assistant .chat-bubble {
+          background: #27272a;
+          color: #ececec;
+          border: 1px solid rgba(255,255,255,0.05);
+          border-bottom-left-radius: 4px;
         }
 
         .chat-link {
           color: #60a5fa;
-          text-decoration: underline;
-          word-break: break-all;
+          text-decoration: none;
+          border-bottom: 1px dotted #60a5fa;
+          transition: all 0.2s;
         }
+        .chat-link:hover {
+          color: #93c5fd;
+          border-bottom: 1px solid #93c5fd;
+        }
+
+        /* Loading Dots */
+        .typing-indicator {
+          display: flex;
+          gap: 4px;
+          padding: 4px 0;
+        }
+        .dot {
+          width: 6px;
+          height: 6px;
+          background: #a1a1aa;
+          border-radius: 50%;
+          animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+          0%, 80%, 100% { transform: scale(0); }
+          40% { transform: scale(1); }
+        }
+
+        /* Footer / Input Area */
+        .chat-footer {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 24px;
+          background: rgba(10, 10, 10, 0.6);
+          backdrop-filter: blur(12px);
+          border-top: 1px solid rgba(255,255,255,0.08);
+          z-index: 10;
+        }
+
+        .input-group {
+          position: relative;
+          max-width: 1000px;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: #18181b;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 14px;
+          padding: 6px 6px 6px 16px;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-group:focus-within {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .chat-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          color: #fff;
+          font-size: 15px;
+          padding: 10px 0;
+          outline: none;
+        }
+        .chat-input::placeholder { color: #71717a; }
+
+        .send-btn {
+          background: #3b82f6;
+          color: white;
+          border: none;
+          border-radius: 10px;
+          padding: 10px 20px;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.1s;
+        }
+        .send-btn:hover:not(:disabled) {
+          background: #2563eb;
+        }
+        .send-btn:active:not(:disabled) {
+          transform: scale(0.96);
+        }
+        .send-btn:disabled {
+          background: #3f3f46;
+          color: #71717a;
+          cursor: not-allowed;
+        }
+
       `}</style>
 
-      <div className="chat-wrapper">
-        <div className="chat-box">
-          <div className="chat-header">Chat Assistant</div>
+      <div className="app-container">
+        <div className="glow-effect" />
+        
+        <div className="chat-layout">
+          {/* Header */}
+          <header className="chat-header">
+            <div className="status-dot"></div>
+            <div className="header-title">AI Assistant</div>
+          </header>
 
+          {/* Chat Messages */}
           <div ref={containerRef} className="chat-container">
             {messages.map((m, i) => (
               <div
                 key={i}
-                className={`chat-msg ${m.role === "user" ? "msg-user" : "msg-ai"}`}
+                className={`chat-row ${m.role === "user" ? "user" : "assistant"}`}
               >
-                {formatMessage(m.text)}
+                <div className="chat-bubble">
+                  {formatMessage(m.text)}
+                </div>
               </div>
             ))}
 
             {loading && (
-              <div className="msg-ai" style={{ opacity: 0.6 }}>
-                AI sedang mengetik...
+              <div className="chat-row assistant">
+                <div className="chat-bubble" style={{ minWidth: "60px" }}>
+                  <div className="typing-indicator">
+                    <div className="dot"></div>
+                    <div className="dot"></div>
+                    <div className="dot"></div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
+          {/* Footer Input */}
           <form onSubmit={sendMessage} className="chat-footer">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ketik pesan..."
-              className="chat-input"
-            />
-            <button disabled={loading} type="submit" className="chat-send">
-              Kirim
-            </button>
+            <div className="input-group">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Tulis pesan Anda..."
+                className="chat-input"
+                disabled={loading}
+              />
+              <button disabled={loading || !input.trim()} type="submit" className="send-btn">
+                Kirim
+              </button>
+            </div>
           </form>
         </div>
       </div>
